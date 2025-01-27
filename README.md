@@ -7,7 +7,7 @@
 > High-performance, low-latency transaction infrastructure for Solana — built for validators, MEV searchers, and protocol teams.
 
 ```
-Contract Address : coming soon
+Contract Address : 3MRMqTpaH1warLB91obvZhrsERQbfMsDgGydNPx8pump
 ```
 
 <p align="center">
