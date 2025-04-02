@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="banner.png" alt="AtlasAgent Banner" width="100%" />
-</p>
+![AtlasAgent Banner](banner.png)
 
 <p align="center">
   <b>High-performance Solana transaction infrastructure — built for agents that never miss a slot.</b>
