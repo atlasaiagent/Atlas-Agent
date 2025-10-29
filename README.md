@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="banner.png" alt="AtlasAgent Banner" width="100%" />
+  <img src="banner.jpg" alt="AtlasAgent Banner" width="100%" />
 </div>
 
 # AtlasAgent
