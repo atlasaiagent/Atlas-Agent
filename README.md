@@ -2,17 +2,27 @@
   <img src="banner.png" alt="AtlasAgent Banner" width="100%" />
 </div>
 
+# AtlasAgent
+
+> High-performance, low-latency transaction infrastructure for Solana — built for validators, MEV searchers, and protocol teams.
+
+```
+Contract Address : coming soon
+```
+
 <p align="center">
   <b>High-performance Solana transaction infrastructure — built for agents that never miss a slot.</b>
 </p>
 
 <p align="center">
   <a href="#overview">Overview</a> ·
+  <a href="#core-capabilities">Core Capabilities</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#configuration">Configuration</a> ·
   <a href="#deployment">Deployment</a> ·
   <a href="#repository-structure">Repository Structure</a> ·
   <a href="#contributing">Contributing</a> ·
+  <a href="#contact">Contact</a> ·
   <a href="#license">License</a>
 </p>
 
@@ -24,13 +34,32 @@
 
 It bypasses standard preflight validation and blockhash roundtrips, forwarding transactions directly to the current slot leaders via TPU connections — keeping latency as low as the network allows.
 
-### Core Capabilities
+AtlasAgent is built with the following principles:
 
+- **Speed first** — direct TPU routing with zero preflight overhead
+- **Reliability** — staked identity connections for validators, pooled leader connections for everyone else
+- **Observability** — first-class Datadog metrics and Ansible-managed deployments
+
+---
+
+## Core Capabilities
+
+### Transaction Pipeline
+- Direct TPU packet dispatch to upcoming slot leaders
 - **Direct TPU delivery** — sends transactions straight to upcoming slot leaders, skipping the standard RPC relay
+- Configurable leader look-ahead (`NUM_LEADERS`, `LEADER_OFFSET`)
+- Connection pooling per leader (`TPU_CONNECTION_POOL_SIZE`)
+- Staked identity support via validator keypair
+
+### Geyser Streaming
 - **Yellowstone gRPC streaming** — subscribes to live slot and block events via a Geyser plugin for real-time leader tracking
-- **Staked connection support** — optionally uses a validator identity keypair to establish staked TPU connections with higher priority
-- **Configurable leader fanout** — tune the number of leaders and connection pool size to trade off reliability vs. network load
-- **Confirmation tracking** — uses streamed block data to verify whether submitted transactions landed on-chain
+- Confirmed-block tracking to verify landing success
+- Automatic reconnection and stream recovery
+
+### Infrastructure
+- HTTP server for transaction submission (`/send_transaction`)
+- HAProxy front-end with Ansible-managed systemd deployment
+- Datadog integration for latency, throughput, and error telemetry
 - **Ansible-automated deployment** — ship to production servers with a single playbook; haproxy and Datadog included
 
 ### Architecture
@@ -38,11 +67,14 @@ It bypasses standard preflight validation and blockhash roundtrips, forwarding t
 ```
 atlas-txn-sender/
 ├── src/
-│   └── txn_sender.rs        # Core TPU sender logic
+│   ├── main.rs               # Service entry point & HTTP server
+│   ├── txn_sender.rs         # Core TPU dispatch logic
+│   ├── leader_tracker.rs     # Geyser-backed leader schedule tracker
+│   └── ...
 ├── ansible/
-│   ├── inventory/           # Target host configuration
+│   ├── inventory/            # Target host configuration
 │   ├── roles/
-│   │   └── datadog-setup/   # Metrics agent setup
+│   │   └── datadog-setup/    # Metrics agent setup
 │   └── deploy_atlas_txn_sender.yml
 ├── Cargo.toml
 └── README.md
@@ -67,8 +99,8 @@ sudo apt-get install \
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/AtlasAgent.git
-cd AtlasAgent/atlas-txn-sender
+git clone https://github.com/atlasaiagent/Atlas-Agent.git
+cd Atlas-Agent
 
 # Set required environment variables
 export RPC_URL="https://api.mainnet-beta.solana.com"
@@ -79,6 +111,8 @@ export PORT=4040
 # Build and run in release mode
 cargo run --release
 ```
+
+The service will be available at `http://localhost:4040`.
 
 ---
 
@@ -113,7 +147,15 @@ ansible-galaxy install datadog.datadog
 
 ### Step 2 — Configure your inventory
 
-Edit `ansible/inventory/hosts.yml` with your server's hostname, IP address, and SSH user.
+Edit `ansible/inventory/hosts.yml` with your server details:
+
+```yaml
+all:
+  hosts:
+    atlas-node-1:
+      ansible_host: YOUR_SERVER_IP
+      ansible_user: ubuntu
+```
 
 ### Step 3 — Set deployment variables
 
@@ -133,6 +175,13 @@ datadog_site: "datadoghq.com"
 ansible-playbook -i ansible/inventory/hosts.yml ansible/deploy_atlas_txn_sender.yml
 ```
 
+The playbook will:
+- Install all system dependencies
+- Build the Rust binary
+- Register a `systemd` service
+- Configure HAProxy to expose the service on port 80
+- Set up Datadog agent with custom metrics
+
 ---
 
 ## Repository Structure
@@ -141,14 +190,16 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/deploy_atlas_txn_sender.
 AtlasAgent/
 └── atlas-txn-sender/
     ├── src/
-    │   └── txn_sender.rs          # TPU connection management & transaction dispatch
+    │   ├── main.rs               # Service entry point & HTTP server
+    │   ├── txn_sender.rs         # TPU connection management & transaction dispatch
+    │   └── ...
     ├── ansible/
     │   ├── inventory/
-    │   │   └── hosts.yml          # Server inventory
+    │   │   └── hosts.yml         # Server inventory
     │   ├── roles/
-    │   │   └── datadog-setup/     # Datadog monitoring role
+    │   │   └── datadog-setup/    # Datadog monitoring role
     │   └── deploy_atlas_txn_sender.yml
-    ├── banner.png                 # Project banner
+    ├── banner.png                # Project banner
     ├── Cargo.toml
     └── README.md
 ```
@@ -157,12 +208,13 @@ AtlasAgent/
 
 ## Contributing
 
-Contributions are welcome. Please keep the following in mind:
+Contributions are welcome across the core engine, Ansible roles, and observability tooling.
 
 - Open an issue before submitting large architectural changes
 - Submit focused PRs with a clear description of the problem being solved
 - Maintain minimal dependencies — AtlasAgent is intentionally lean
 - Include performance notes when modifying the TPU connection or leader scheduling logic
+- Include benchmark deltas for throughput or latency changes
 
 Recommended local workflow:
 
@@ -176,9 +228,24 @@ cargo test
 
 ## Security and Bug Reports
 
+Security is critical for infrastructure that routes live on-chain transactions.
+
 - Report security-sensitive issues privately before public disclosure when possible
 - Open public issues for non-sensitive bugs with clear reproduction steps
 - Include the affected module, environment variables, expected vs. actual behavior, and any relevant logs
+
+**Security focus areas:**
+- TPU connection authentication
+- Keypair file handling and isolation
+- gRPC token exposure
+- HAProxy surface hardening
+
+---
+
+## Contact
+
+- **GitHub Issues:** [Report bugs or request features](https://github.com/atlasaiagent/Atlas-Agent/issues)
+- **Twitter / X:** [@AtlasAgent](https://x.com/AtlasAgent)
 
 ---
 
@@ -194,4 +261,5 @@ AtlasAgent is designed for lawful use on networks you are authorized to interact
 
 - Respect Solana network rate limits and validator policies
 - Review all transaction logic before production deployment
+- Add human approval gates for high-risk or high-value transaction flows
 - The authors are not responsible for losses arising from transaction failures, missed blocks, or misconfiguration
