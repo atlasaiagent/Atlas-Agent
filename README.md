@@ -245,7 +245,6 @@ Security is critical for infrastructure that routes live on-chain transactions.
 ## Contact
 
 - **GitHub Issues:** [Report bugs or request features](https://github.com/atlasaiagent/Atlas-Agent/issues)
-- **Twitter / X:** [@AtlasAgent](https://x.com/AtlasAgent)
 
 ---
 
